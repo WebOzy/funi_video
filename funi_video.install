@@ -1,0 +1,250 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+
+function funi_video_install() {
+  // Create table
+  $created = drupal_install_schema('funi_video');
+
+  if ($created) {
+    drupal_set_message(t('Funi Video module installed successfully. You must set <a href="/admin/user/permissions#module-funi_video">permissions</a> and <a href="/admin/build/funi_video">configure</a> the module. '));
+  }
+  else {
+    drupal_set_message(t('Table installation for the Funi Video module was unsuccessful. The tables may need to be installed by hand. See funi_video.install file for a list of the installation queries.'), 'error');
+  }
+  return;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function funi_video_uninstall() {
+
+  // Remove variables
+  db_query('DELETE FROM {variable} WHERE name LIKE "funi_video_%"');
+
+  // Remove table
+$deleted = drupal_uninstall_schema('funi_video');
+  if ($deleted) {
+    drupal_set_message(t('Funi Video module has been uninstalled successfully.'));
+  }
+  else {
+    drupal_set_message(t('Table removal for the Funi Video module was unsuccessful. The tables may need to be uninstalled by hand. See funi_video.install file for a list of the uninstall queries.'), 'error');
+  }
+  return;
+}
+
+
+/**
+ * Implementation of hook_schema() - borrowed from the views installer.
+ *
+ * Generate the current version of the database schema from
+ * the sequence of schema update functions. Uses a similar
+ * method to install.inc's drupal_get_schema_versions() to
+ * establish the update sequence.
+ *
+ * To change the schema, add a new funi_video_schema_N()
+ * function to match the associated funi_video_update_N()
+ *
+ * @param $caller_function
+ *   The name of the function that called us.
+ *   Used internally, if requesting a specific schema version.
+ */
+function funi_video_schema($caller_function = FALSE) {
+  static $get_current;
+  static $schemas = array();
+
+  // If called with no arguments, get the latest version of the schema.
+  if (!isset($get_current)) {
+    $get_current = $caller_function ? FALSE : TRUE;
+  }
+
+  // Generate a sorted list of available schema update functions.
+  if ($get_current || empty($schemas)) {
+    $get_current = FALSE;
+    $functions = get_defined_functions();
+    foreach ($functions['user'] as $function) {
+      if (strpos($function, 'funi_video_schema_') === 0) {
+        $version = substr($function, strlen('funi_video_schema_'));
+        if (is_numeric($version)) {
+          $schemas[] = $version;
+        }
+      }
+    }
+    if ($schemas) {
+      sort($schemas, SORT_NUMERIC);
+
+      // If a specific version was requested, drop any later
+      // updates from the sequence.
+      if ($caller_function) {
+        do {
+          $schema = array_pop($schemas);
+        } while ($schemas && $caller_function != 'funi_video_schema_'. $schema);
+      }
+    }
+  }
+
+  // Call funi_video_schema_<n>, for the highest available <n>.
+  if ($schema = array_pop($schemas)) {
+    $function = 'funi_video_schema_'. $schema;
+    return $function();
+  }
+
+  return array();
+}
+
+function funi_video_6000() {
+  $schema['funi_videos'] = array(
+    'description' => t('Stores video activity information.'),
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Show node ID.',
+      ),
+      'show' => array(
+        'description' => 'The show name.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'type' => array(
+      	'description' => 'Node type',
+        'type' => 'int',
+        'type' => 'varchar',
+        'length' => 255,
+      ),
+      'quality' => array(
+      	'description' => t('Video quality'),
+        'type' => 'varchar',
+        'not null' => FALSE,
+        'length' => 255,
+      ),
+      'fs_sunrise' => array(
+      	'description' => 'Free streaming sunrise.',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'fs_sunset' => array(
+      	'description' => 'Free streaming sunset.',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'sub_sunrise' => array(
+      	'description' => 'Subscription sunrise.',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'sub_sunset' => array(
+      	'description' => 'Subscription sunset.',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'active_state' => array(
+      	'description' => 'Active state',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'next_sunrise' => array(
+      	'description' => 'free streaming sunrise OR subscription sunrise WHICHEVER is next ) - this is for recent sorting in Views',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'last_check' => array(
+      	'description' => 'time of the last check on this videos active status',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'next_check' => array(
+      	'description' => 'time that this video should be checked next (based on whichever sunrise/sunset is coming up next)',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+		),
+		'primary key' => array('nid'),
+    'indexes' => array(
+      'list' => array('show', 'type', 'active_state', 'next_sunrise', 'next_check'),
+    ),
+	);
+	
+	$schema['funi_shows'] = array(
+    'description' => t('Stores show activity information.'),
+    'fields' => array(
+      'nid' => array(
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Show node ID.',
+      ),
+       'needs_update' => array(
+      	'description' => 'Needs update',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+       'has_videos' => array(
+      	'description' => 'Has videos',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'most_recent_video' => array(
+      	'description' => 'Most recent video',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+       'has_episodes' => array(
+      	'description' => 'Has episodes',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'most_recent_episode' => array(
+      	'description' => 'Most recent episode',
+        'type' => 'datetime',
+        'not null' => FALSE,
+      ),
+      'has_subscription' => array(
+      	'description' => 'Has subscription',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'subscription_exclusive' => array(
+      	'description' => 'Subscription exclusive',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'has_hd' => array(
+      	'description' => 'Has hd',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'video_types' => array(
+      	'description' => t('Video types'),
+        'type' => 'varchar',
+        'not null' => FALSE,
+        'length' => 255,
+      ),
+		),
+		'primary key' => array('nid'),
+    'indexes' => array(
+      'list' => array('show', 'needs_update', 'has_videos', 'most_recent_video', 'has_episodes', 'most_recent_episode', 'has_subscription', 'subscription_exclusive', 'has_hd'),
+    ),
+	);
+	
+	return $schema;
+}
+

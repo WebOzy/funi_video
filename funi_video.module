@@ -1,0 +1,84 @@
+<?php
+//$Id$
+
+/**
+ * Implementation of hook_init().
+ */
+/*
+function funi_video_init() {
+	funi_video_embed(); 
+}
+*/
+
+// User permissions
+define('FUNI_VIDEO_ADMIN_PERM', 'Administer Funi Video module');
+
+/**
+ * Implementation of hook_menu().
+ */
+function funi_video_menu() {  
+	$items = array();
+
+  $items['admin/build/funi_video'] = array(
+    'title' => t('Funi Players'),
+    'description' => t('Funi Video Settings page.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('funi_video_admin_settings'),
+    'access arguments' => array(FUNI_VIDEO_ADMIN_PERM),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'funi_video.admin.inc',
+    'weight' => 10,
+  );
+
+  return $items;
+}
+
+
+/**
+ * Implementation of hook_perm().
+ */
+function funi_video_perm() {
+  return array(FUNI_VIDEO_ADMIN_PERM);
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function funi_video_theme() {
+  return array(
+    'funi_video_settings' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'funi_video.admin.inc',
+    ),
+    'funi_video_admin_form_tabs' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'funi_video.admin.inc',
+    ),
+    'funi_video_tabs' => array(
+      'arguments' => array('funi_video', 'active_tab' => 'none'),
+    ),
+    'funi_video' => array(
+      'arguments' => array('funi_video'),
+    ),
+    'funi_video_tab_access_denied' => array(
+      'arguments' => array('tab'),
+    ),
+    'funi_video_admin_list' => array(
+      'arguments' => array('form' => NULL),
+    ),
+  );
+}
+
+/**
+ * Load the funi_video data for form processing.
+ */
+/*
+function funi_video_load($aid, $op = 'view') {
+  $funi_video = db_fetch_array(db_query('SELECT * FROM {funi_video} WHERE aid = %d', $aid));
+  if (!$funi_video) {
+    return FALSE;
+  }
+
+  return $funi_video;
+}
+*/

@@ -1,0 +1,8 @@
+;Id:$ fct
+
+name = Funi Video
+description = Custom Funimation Video Player module(s).
+core = 6.x
+package = Funimation
+version = 6.x-1.x-alpha1
+project = "funi_video"
