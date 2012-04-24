@@ -53,51 +53,8 @@ $deleted = drupal_uninstall_schema('funi_video');
  *   The name of the function that called us.
  *   Used internally, if requesting a specific schema version.
  */
-function funi_video_schema($caller_function = FALSE) {
-  static $get_current;
-  static $schemas = array();
-
-  // If called with no arguments, get the latest version of the schema.
-  if (!isset($get_current)) {
-    $get_current = $caller_function ? FALSE : TRUE;
-  }
-
-  // Generate a sorted list of available schema update functions.
-  if ($get_current || empty($schemas)) {
-    $get_current = FALSE;
-    $functions = get_defined_functions();
-    foreach ($functions['user'] as $function) {
-      if (strpos($function, 'funi_video_schema_') === 0) {
-        $version = substr($function, strlen('funi_video_schema_'));
-        if (is_numeric($version)) {
-          $schemas[] = $version;
-        }
-      }
-    }
-    if ($schemas) {
-      sort($schemas, SORT_NUMERIC);
-
-      // If a specific version was requested, drop any later
-      // updates from the sequence.
-      if ($caller_function) {
-        do {
-          $schema = array_pop($schemas);
-        } while ($schemas && $caller_function != 'funi_video_schema_'. $schema);
-      }
-    }
-  }
-
-  // Call funi_video_schema_<n>, for the highest available <n>.
-  if ($schema = array_pop($schemas)) {
-    $function = 'funi_video_schema_'. $schema;
-    return $function();
-  }
-
-  return array();
-}
-
-function funi_video_6000() {
-  $schema['funi_videos'] = array(
+function funi_video_schema() {
+  $schema['funivideo_videos'] = array(
     'description' => t('Stores video activity information.'),
     'fields' => array(
       'nid' => array(
@@ -105,43 +62,35 @@ function funi_video_6000() {
         'not null' => TRUE,
         'description' => 'Primary Key: Show node ID.',
       ),
-      'show' => array(
+      'show_name' => array(
         'description' => 'The show name.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
       ),
-      'type' => array(
+      'node_type' => array(
       	'description' => 'Node type',
-        'type' => 'int',
         'type' => 'varchar',
-        'length' => 255,
+        'length' => 80,
+        'not null' => TRUE,
       ),
       'quality' => array(
-      	'description' => t('Video quality'),
+				'description' => t('Video quality'),
         'type' => 'varchar',
         'not null' => FALSE,
         'length' => 255,
       ),
       'fs_sunrise' => array(
-      	'description' => 'Free streaming sunrise.',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Free streaming sunrise.', 'type' => 'int', 'length' => 11, 'not null' => FALSE,
       ),
       'fs_sunset' => array(
-      	'description' => 'Free streaming sunset.',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Free streaming sunset.', 'type' => 'int', 'length' => 11, 'not null' => FALSE,
       ),
       'sub_sunrise' => array(
-      	'description' => 'Subscription sunrise.',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Subscription sunrise.', 'type' => 'int', 'length' => 11, 'not null' => FALSE,
       ),
       'sub_sunset' => array(
-      	'description' => 'Subscription sunset.',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Subscription sunset.', 'type' => 'int', 'length' => 11, 'not null' => FALSE,
       ),
       'active_state' => array(
       	'description' => 'Active state',
@@ -150,29 +99,51 @@ function funi_video_6000() {
         'default' => 0,
         'size' => 'tiny',
       ),
+      'exclusive_active' => array(
+      	'description' => 'If active and exclusive (subscription)',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'hulu_active' => array(
+      	'description' => 'If Hulu sunrise is active and id exists',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      
       'next_sunrise' => array(
       	'description' => 'free streaming sunrise OR subscription sunrise WHICHEVER is next ) - this is for recent sorting in Views',
-        'type' => 'datetime',
-        'not null' => FALSE,
+        'type' => 'int', 'length' => 11, 'not null' => TRUE,
       ),
       'last_check' => array(
       	'description' => 'time of the last check on this videos active status',
-        'type' => 'datetime',
-        'not null' => FALSE,
+        'type' => 'int', 'length' => 11, 'not null' => TRUE,
       ),
       'next_check' => array(
       	'description' => 'time that this video should be checked next (based on whichever sunrise/sunset is coming up next)',
-        'type' => 'datetime',
-        'not null' => FALSE,
+        'type' => 'int', 'length' => 11, 'not null' => TRUE,
       ),
 		),
-		'primary key' => array('nid'),
     'indexes' => array(
-      'list' => array('show', 'type', 'active_state', 'next_sunrise', 'next_check'),
+      'show_name' => array('show_name'),
+      'type' => array('node_type'),
+      'active_state' => array('active_state'),
+      'next_sunrise' => array('next_sunrise'),
+      'next_check' => array('next_check'),
     ),
+    'foreign keys' => array(
+	    'node_video' => array(
+	      'table' => 'node_revision',
+	      'columns' => array('nid' => 'nid'),
+	     ),
+	   ),
+	   'primary key' => array('nid'),
 	);
 	
-	$schema['funi_shows'] = array(
+	$schema['funivideo_shows'] = array(
     'description' => t('Stores show activity information.'),
     'fields' => array(
       'nid' => array(
@@ -195,9 +166,7 @@ function funi_video_6000() {
         'size' => 'tiny',
       ),
       'most_recent_video' => array(
-      	'description' => 'Most recent video',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Most recent video', 'type' => 'int', 'length' => 11, 'not null' => TRUE,
       ),
        'has_episodes' => array(
       	'description' => 'Has episodes',
@@ -207,9 +176,7 @@ function funi_video_6000() {
         'size' => 'tiny',
       ),
       'most_recent_episode' => array(
-      	'description' => 'Most recent episode',
-        'type' => 'datetime',
-        'not null' => FALSE,
+      	'description' => 'Most recent episode', 'type' => 'int', 'length' => 11, 'not null' => TRUE,
       ),
       'has_subscription' => array(
       	'description' => 'Has subscription',
@@ -239,10 +206,19 @@ function funi_video_6000() {
         'length' => 255,
       ),
 		),
-		'primary key' => array('nid'),
-    'indexes' => array(
-      'list' => array('show', 'needs_update', 'has_videos', 'most_recent_video', 'has_episodes', 'most_recent_episode', 'has_subscription', 'subscription_exclusive', 'has_hd'),
+		'indexes' => array(
+      'needs_update' => array('needs_update'),
+      'has' => array('has_videos','has_episodes','has_subscription', 'has_hd'),
+      'most_recent' => array('most_recent_video','most_recent_episode'),
+      'sub_exclusive' => array('subscription_exclusive'),
     ),
+    'foreign keys' => array(
+	    'node_show' => array(
+	      'table' => 'og',
+	      'columns' => array('nid' => 'nid'),
+	     ),
+	   ),
+	   'primary key' => array('nid'),
 	);
 	
 	return $schema;
